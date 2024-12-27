@@ -1,4 +1,3 @@
-using System.Net.Mime;
 using AudioBrowser.Components;
 using AudioBrowser.Services;
 using Microsoft.AspNetCore.DataProtection;
@@ -7,13 +6,9 @@ using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.Extensions.Options;
 using Options = AudioBrowser.Options;
 
-// new FileInfo("/tmp/test.txt").Create();
-// XAttrsService.SetBool(new FileInfo("/tmp/test.txt"), "test", true);
-// Console.WriteLine($"Woot it worked: {XAttrsService.GetBool(new FileInfo("/tmp/test.txt"), "test")}");
-
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddDataProtection().PersistKeysToFileSystem(new DirectoryInfo("/files"));
+builder.Services.AddDataProtection().PersistKeysToFileSystem(new DirectoryInfo(builder.Configuration["FilesPath"]));
 builder.Services.Configure<Options>(builder.Configuration);
 
 // Add services to the container.
@@ -32,9 +27,6 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
 }
 
-app.UseHttpsRedirection();
-
-
 app.UseAntiforgery();
 
 app.MapStaticAssets();
@@ -45,8 +37,6 @@ app.MapGet("/file/{**path}", ([FromRoute] string path, [FromServices] IOptions<O
 {
     var file = new FileInfo(Path.Join(options.Value.FilesDirectory.FullName, path));
     if (!file.FullName.StartsWith(options.Value.FilesDirectory.FullName)) return Results.BadRequest();
-
-    logger.LogInformation("File request {} {} {}", path, file.FullName, file.Exists);
     
     if (!file.Exists) return Results.NotFound();
     var contentTypeMapping = new FileExtensionContentTypeProvider();

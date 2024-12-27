@@ -1,5 +1,6 @@
 ﻿@page "/"
 @using AudioBrowser.Services
+@using Humanizer.Bytes
 @using Microsoft.Extensions.Options
 @using Options = AudioBrowser.Options
 @inject IOptionsMonitor<Options> options
@@ -32,11 +33,17 @@ else
         <p><a href="javascript:false;" @onclick="@(TraverseUp)">Go up</a></p>
     }
     
-    <ul>
+    <ul style="margin-bottom: 10em;">
         @foreach (var file in files)
         {
             <li>
-                <a href="javascript:false;" @onclick="@(() => ClickFile(file))">@file.Name @(!file.Attributes.HasFlag(FileAttributes.Directory) ? (XAttrsService.GetBool((FileInfo)file, "heard") ?? false) ? "(Heard)" : "(Not listened to)" : "")</a>
+                <a
+                    href="javascript:false;"
+                    @onclick="@(() => ClickFile(file))">
+                    @(!file.Attributes.HasFlag(FileAttributes.Directory) ? XAttrsService.GetBool((FileInfo)file, "heard") ?? false ? "✅" : "➡️" : "📁")
+                    @file.Name
+                    @(file is FileInfo fi ? $" - {Math.Round(ByteSize.FromBytes(fi.Length).Kilobytes)} KB" : "")
+                </a>
             </li>
         }
     </ul>
