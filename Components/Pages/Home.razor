@@ -1,0 +1,91 @@
+﻿@page "/"
+@using AudioBrowser.Services
+@using Microsoft.Extensions.Options
+@using Options = AudioBrowser.Options
+@inject IOptionsMonitor<Options> options
+@inject NavigationManager navManager
+@inject ILogger<Home> logger
+@attribute [StreamRendering]
+@rendermode InteractiveServer
+
+
+<PageTitle>Files</PageTitle>
+
+<h1>Files</h1>
+
+@if (files is null)
+{
+    <p>Unable to get files</p>
+}
+else
+{
+    @if (activeAudioPath is not null)
+    {
+        <div style="position: fixed;bottom: 0;left: 0;right: 0;width: 100%;border-top: 1px solid #666;background: white;padding: 0.5em;">
+            <audio style="width: 100%" src="/file/@activeAudioPath" controls autoplay></audio>
+        </div>
+    }
+    
+    @if (path is not null && path != "/" && path != "")
+    {
+        <p>@(path)</p>
+        <p><a href="javascript:false;" @onclick="@(TraverseUp)">Go up</a></p>
+    }
+    
+    <ul>
+        @foreach (var file in files)
+        {
+            <li>
+                <a href="javascript:false;" @onclick="@(() => ClickFile(file))">@file.Name @(!file.Attributes.HasFlag(FileAttributes.Directory) ? (XAttrsService.GetBool((FileInfo)file, "heard") ?? false) ? "(Heard)" : "(Not listened to)" : "")</a>
+            </li>
+        }
+    </ul>
+}
+
+@code {
+    [Parameter]
+    [SupplyParameterFromQuery]
+    public string? path { get; set; }
+
+    private DirectoryInfo? _directory;
+    private FileSystemInfo[]? files = null;
+
+    private string? activeAudioPath = null;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var rootPath = options.CurrentValue.FilesDirectory.FullName;
+        _directory = new DirectoryInfo(Path.Join(options.CurrentValue.FilesDirectory.FullName, path));
+        if (!_directory.FullName.StartsWith(rootPath)) throw new ApplicationException("Bad.");
+        files = _directory.EnumerateFileSystemInfos().OrderByDescending(f => f.Attributes.HasFlag(FileAttributes.Directory)).ThenBy(f => f.Name).ToArray();
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await OnInitializedAsync();
+    }
+
+    private void ClickFile(FileSystemInfo fileSystemInfo)
+    {
+        var relativePath = Path.GetRelativePath(options.CurrentValue.FilesDirectory.FullName, fileSystemInfo.FullName);
+        if (fileSystemInfo.Attributes.HasFlag(FileAttributes.Directory))
+        {
+            navManager.NavigateTo(navManager.GetUriWithQueryParameter("path", relativePath));
+        }
+        else
+        {
+            var currentStatus = XAttrsService.GetBool((FileInfo)fileSystemInfo, "heard");
+            if (currentStatus != true)
+                XAttrsService.SetBool((FileInfo)fileSystemInfo, "heard", !(currentStatus ?? false));
+            activeAudioPath = relativePath;
+            StateHasChanged();
+        }
+    }
+
+    private void TraverseUp()
+    {
+        var relativePath = Path.GetRelativePath(options.CurrentValue.FilesDirectory.FullName, Path.Join(_directory!.FullName, ".."));
+        navManager.NavigateTo(navManager.GetUriWithQueryParameter("path", relativePath));
+    }
+    
+}
