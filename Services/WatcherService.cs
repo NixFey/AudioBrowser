@@ -4,10 +4,13 @@ namespace AudioBrowser.Services;
 
 public class WatcherService(IOptionsMonitor<Options> optionsMonitor, ILogger<WatcherService> logger) : IHostedService
 {
-    private FileSystemWatcher _watcher;
+    private FileSystemWatcher _watcher = null!;
+
+    public static event EventHandler<EventArgs>? FilesChanged;
+    
     public Task StartAsync(CancellationToken cancellationToken)
     {
-        logger.LogInformation("aaWatching files in {Path}", optionsMonitor.CurrentValue.FilesDirectory.FullName);
+        logger.LogInformation("Watching files in {Path}", optionsMonitor.CurrentValue.FilesDirectory.FullName);
         _watcher = new FileSystemWatcher(optionsMonitor.CurrentValue.FilesDirectory.FullName)
         {
             IncludeSubdirectories = true,
@@ -23,11 +26,25 @@ public class WatcherService(IOptionsMonitor<Options> optionsMonitor, ILogger<Wat
         _watcher.Created += (_, evt) =>
         {
             logger.LogInformation("File created: {} {}", evt.FullPath, evt.ChangeType);
+            if (evt.Name?.EndsWith("tmp") ?? false) return;
+            
+            FilesChanged?.Invoke(null, EventArgs.Empty);
         };
         
         _watcher.Renamed += (_, evt) =>
         {
-            logger.LogInformation("File created: {} {}", evt.FullPath, evt.ChangeType);
+            logger.LogInformation("File renamed: {} {}", evt.FullPath, evt.ChangeType);
+            if (evt.Name?.EndsWith("tmp") ?? false) return;
+            
+            FilesChanged?.Invoke(null, EventArgs.Empty);
+        };
+        
+        _watcher.Deleted += (_, evt) =>
+        {
+            logger.LogInformation("File deleted: {} {}", evt.FullPath, evt.ChangeType);
+            if (evt.Name?.EndsWith("tmp") ?? false) return;
+            
+            FilesChanged?.Invoke(null, EventArgs.Empty);
         };
 
         _watcher.EnableRaisingEvents = true;

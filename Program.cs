@@ -15,6 +15,7 @@ builder.Services.Configure<Options>(builder.Configuration);
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
+builder.Services.AddSingleton<WatcherService>();
 builder.Services.AddHostedService<WatcherService>();
 
 var app = builder.Build();

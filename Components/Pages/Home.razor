@@ -3,9 +3,10 @@
 @using Humanizer.Bytes
 @using Microsoft.Extensions.Options
 @using Options = AudioBrowser.Options
-@inject IOptionsMonitor<Options> options
-@inject NavigationManager navManager
-@inject ILogger<Home> logger
+@inject IOptionsMonitor<Options> Options
+@inject NavigationManager NavManager
+@inject IServiceProvider Services
+@inject ILogger<Program> Logger
 @attribute [StreamRendering]
 @rendermode InteractiveServer
 
@@ -14,27 +15,27 @@
 
 <h1>Files</h1>
 
-@if (files is null)
+@if (_files is null)
 {
     <p>Unable to get files</p>
 }
 else
 {
-    @if (activeAudioPath is not null)
+    @if (_activeAudioPath is not null)
     {
         <div style="position: fixed;bottom: 0;left: 0;right: 0;width: 100%;border-top: 1px solid #666;background: white;padding: 0.5em;">
-            <audio style="width: 100%" src="/file/@activeAudioPath" controls autoplay></audio>
+            <audio style="width: 100%" src="/file/@_activeAudioPath" controls autoplay></audio>
         </div>
     }
     
-    @if (path is not null && path != "/" && path != "")
+    @if (Path is not null && Path != "/" && Path != "")
     {
-        <p>@(path)</p>
+        <p>@(Path)</p>
         <p><a href="javascript:false;" @onclick="@(TraverseUp)">Go up</a></p>
     }
     
     <ul style="margin-bottom: 10em;">
-        @foreach (var file in files)
+        @foreach (var file in _files)
         {
             <li>
                 <a
@@ -52,19 +53,37 @@ else
 @code {
     [Parameter]
     [SupplyParameterFromQuery]
-    public string? path { get; set; }
+    public string? Path { get; set; }
 
     private DirectoryInfo? _directory;
-    private FileSystemInfo[]? files = null;
+    private FileSystemInfo[]? _files;
 
-    private string? activeAudioPath = null;
+    private string? _activeAudioPath;
 
-    protected override async Task OnInitializedAsync()
+    protected override Task OnInitializedAsync()
     {
-        var rootPath = options.CurrentValue.FilesDirectory.FullName;
-        _directory = new DirectoryInfo(Path.Join(options.CurrentValue.FilesDirectory.FullName, path));
+        //foreach (var service in Services.GetServices<IHostedService>())
+        //{
+        //    if (service is WatcherService watcherService)
+        //    {
+                WatcherService.FilesChanged += async (_, _) =>
+                {
+                    Logger.LogInformation("Got a change, rerendering");
+                    await InvokeAsync(async () =>
+                    {
+                        await OnInitializedAsync();
+                        StateHasChanged();
+                    });
+                };                
+            //}
+        //}
+        
+        var rootPath = Options.CurrentValue.FilesDirectory.FullName;
+        _directory = new DirectoryInfo(System.IO.Path.Join(Options.CurrentValue.FilesDirectory.FullName, Path));
         if (!_directory.FullName.StartsWith(rootPath)) throw new ApplicationException("Bad.");
-        files = _directory.EnumerateFileSystemInfos().OrderByDescending(f => f.Attributes.HasFlag(FileAttributes.Directory)).ThenBy(f => f.Name).ToArray();
+        _files = _directory.EnumerateFileSystemInfos().OrderByDescending(f => f.Attributes.HasFlag(FileAttributes.Directory)).ThenBy(f => f.Name).ToArray();
+
+        return Task.CompletedTask;
     }
 
     protected override async Task OnParametersSetAsync()
@@ -74,25 +93,25 @@ else
 
     private void ClickFile(FileSystemInfo fileSystemInfo)
     {
-        var relativePath = Path.GetRelativePath(options.CurrentValue.FilesDirectory.FullName, fileSystemInfo.FullName);
+        var relativePath = System.IO.Path.GetRelativePath(Options.CurrentValue.FilesDirectory.FullName, fileSystemInfo.FullName);
         if (fileSystemInfo.Attributes.HasFlag(FileAttributes.Directory))
         {
-            navManager.NavigateTo(navManager.GetUriWithQueryParameter("path", relativePath));
+            NavManager.NavigateTo(NavManager.GetUriWithQueryParameter("path", relativePath));
         }
         else
         {
             var currentStatus = XAttrsService.GetBool((FileInfo)fileSystemInfo, "heard");
             if (currentStatus != true)
                 XAttrsService.SetBool((FileInfo)fileSystemInfo, "heard", !(currentStatus ?? false));
-            activeAudioPath = relativePath;
+            _activeAudioPath = relativePath;
             StateHasChanged();
         }
     }
 
     private void TraverseUp()
     {
-        var relativePath = Path.GetRelativePath(options.CurrentValue.FilesDirectory.FullName, Path.Join(_directory!.FullName, ".."));
-        navManager.NavigateTo(navManager.GetUriWithQueryParameter("path", relativePath));
+        var relativePath = System.IO.Path.GetRelativePath(Options.CurrentValue.FilesDirectory.FullName, System.IO.Path.Join(_directory!.FullName, ".."));
+        NavManager.NavigateTo(NavManager.GetUriWithQueryParameter("path", relativePath));
     }
     
 }
