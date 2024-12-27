@@ -66,12 +66,10 @@ else
         window.__initialized = true;
         const getFileEls = () => Array.from(document.querySelectorAll(".audioList a"));
         document.addEventListener("keydown", (e) => {
-            console.log("Got key " + e.key);
             if (e.key === "ArrowDown" || e.key === "ArrowUp") {
                 e.preventDefault();
                 const files = getFileEls();
                 const activeIndex = files.findIndex(f => f.hasAttribute("data-active"));
-                console.log("activeIndex is " + activeIndex);
                 
                 if (activeIndex === -1) return;
                 
@@ -85,7 +83,6 @@ else
                 
                 if (e.key === "ArrowDown") {
                     const newIndex = activeIndex + 1;
-                    console.log("newIndex is " + newIndex);
                     if (newIndex >= files.length) return;
                     
                     changeAudio(files[newIndex]);
