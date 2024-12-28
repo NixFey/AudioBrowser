@@ -1,14 +1,15 @@
 using AudioBrowser.Components;
 using AudioBrowser.Services;
 using Microsoft.AspNetCore.DataProtection;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.StaticFiles;
+using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Options;
 using Options = AudioBrowser.Options;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddDataProtection().PersistKeysToFileSystem(new DirectoryInfo(builder.Configuration["FilesPath"]));
+builder.Services.AddDataProtection().PersistKeysToFileSystem(new DirectoryInfo(builder.Configuration["FilesPath"] ??
+                                                                               throw new ApplicationException(
+                                                                                   "FilesPath configuration not specified")));
 builder.Services.Configure<Options>(builder.Configuration);
 
 // Add services to the container.
@@ -17,6 +18,12 @@ builder.Services.AddRazorComponents()
 
 builder.Services.AddSingleton<WatcherService>();
 builder.Services.AddHostedService<WatcherService>();
+
+builder.Services.AddOptions<StaticFileOptions>().Configure<IOptionsMonitor<Options>>((sfOpt, opt) =>
+{
+    sfOpt.RequestPath = "/file";
+    sfOpt.FileProvider = new PhysicalFileProvider(opt.CurrentValue.FilesDirectory.FullName);
+});
 
 var app = builder.Build();
 
@@ -34,16 +41,7 @@ app.MapStaticAssets();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
-app.MapGet("/file/{**path}", ([FromRoute] string path, [FromServices] IOptions<Options> options, [FromServices] ILogger<Program> logger) =>
-{
-    var file = new FileInfo(Path.Join(options.Value.FilesDirectory.FullName, path));
-    if (!file.FullName.StartsWith(options.Value.FilesDirectory.FullName)) return Results.BadRequest();
-    
-    if (!file.Exists) return Results.NotFound();
-    var contentTypeMapping = new FileExtensionContentTypeProvider();
-    _ = contentTypeMapping.TryGetContentType(file.Name, out var type);
-
-    return Results.File(file.OpenRead(), type, file.Name);
-});
+// Note: If the files directory is changed, this won't pick it up without a full restart of the app
+app.UseStaticFiles();
 
 app.Run();
