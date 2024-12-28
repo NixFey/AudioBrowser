@@ -7,6 +7,7 @@ EXPOSE 8081
 
 FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:9.0 AS build
 ARG BUILD_CONFIGURATION=Release
+ARG TARGETARCH
 WORKDIR /src
 COPY ["AudioBrowser.csproj", "./"]
 RUN dotnet restore "AudioBrowser.csproj" -a $TARGETARCH
