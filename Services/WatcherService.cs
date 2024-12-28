@@ -14,6 +14,7 @@ public class WatcherService(IOptionsMonitor<Options> optionsMonitor, ILogger<Wat
         _watcher = new FileSystemWatcher(optionsMonitor.CurrentValue.FilesDirectory.FullName)
         {
             IncludeSubdirectories = true,
+            Filter = "*.mp3",
             NotifyFilter = NotifyFilters.Attributes |
                            NotifyFilters.CreationTime |
                            NotifyFilters.FileName |
