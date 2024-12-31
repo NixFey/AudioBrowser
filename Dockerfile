@@ -1,8 +1,22 @@
-FROM rust:1.83
-EXPOSE 3000
-WORKDIR /usr/src/AudioBrowser
+FROM rust:1.83 AS base
+WORKDIR /app
+
+RUN cargo install cargo-chef --locked
+
+FROM base AS planner
 COPY . .
+RUN cargo chef prepare --bin AudioBrowser --recipe-path recipe.json
 
-RUN cargo install --path .
+FROM base AS builder
+COPY --from=planner /app/recipe.json recipe.json
+# Build dependencies - this is the caching Docker layer!
+RUN cargo chef cook --release --bin AudioBrowser --recipe-path recipe.json
+# Build application
+COPY . .
+RUN cargo build --release --bin AudioBrowser
 
-CMD ["AudioBrowser"]
+# We do not need the Rust toolchain to run the binary!
+FROM debian:bookworm-slim AS runtime
+WORKDIR /app
+COPY --from=builder /app/target/release/AudioBrowser /usr/local/bin
+ENTRYPOINT ["/usr/local/bin/AudioBrowser"]

@@ -10,12 +10,7 @@ No files
 <ul>
 {% for file in files %}
 <li>
-    {% if file.is_directory %}
-    <a href="?path={{file.relative_path|e}}" hx-get="/list?path={{file.relative_path|e}}" hx-target="#fileListing">📁 {{file.name}}</a>
-    {% else %}
-    <a href="#" hx-put="/toggle-status" hx-vals='{"path": "{{file.relative_path|safe}}"}' hx-target="#fileListing">{% if file.is_heard %}✅{% else %}➡️{% endif %}</a>
-    <a href="#" data-path="{{file.relative_path|e}}" onclick="setAudioSource(event);" hx-put="/toggle-status" hx-vals='{"path": "{{file.relative_path|safe}}", "heard": true}' hx-target="#fileListing">{{file.name}} ({{ file.size }})</a>
-    {% endif %}
+    {{ file|safe }}
 </li>
 {% endfor %}
 </ul>
