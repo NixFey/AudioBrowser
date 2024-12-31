@@ -8,7 +8,7 @@ use axum::response::IntoResponse;
 use serde::Deserialize;
 
 mod templates;
-use templates::{FileListingTemplate, FileDto, HomeTemplate};
+use templates::{FileListingTemplate, FileListingEntryTemplate, HomeTemplate};
 
 #[tokio::main]
 async fn main() {
@@ -46,7 +46,7 @@ fn get_file_heard(path: &PathBuf) -> bool {
     })
 }
 
-async fn get_file_list<'a>(path: Option<String>, state: Config) -> Result<impl IntoResponse, String> {
+async fn get_file_list<'a>(path: Option<String>, state: Config, push_history: bool) -> Result<impl IntoResponse, String> {
     let path = path.as_ref();
     let base = &state.files_base_path;
     let mut path_buf = if path.is_none_or(|p| p.is_empty()) {
@@ -75,7 +75,7 @@ async fn get_file_list<'a>(path: Option<String>, state: Config) -> Result<impl I
     files.sort_by_key(|de| de.as_ref().unwrap().file_name());
 
     let file_names = files.iter().filter_map(|f| f.as_ref().ok().map(|e|
-        FileDto {
+        FileListingEntryTemplate {
             name: e.file_name().to_string_lossy().to_string(),
             relative_path: e.path().strip_prefix(base).unwrap_or(Path::new(".")).to_string_lossy().to_string(),
             size: format!("{} KB", e.metadata().unwrap().len() / 1024),
@@ -92,13 +92,15 @@ async fn get_file_list<'a>(path: Option<String>, state: Config) -> Result<impl I
         files: file_names
     }.into_response();
 
-    resp.headers_mut().insert("HX-Push-Url", HeaderValue::try_from(format!("?path={}", relative_path.clone())).unwrap());
+    if push_history {
+        resp.headers_mut().insert("HX-Push-Url", HeaderValue::try_from(format!("?path={}", relative_path.clone())).unwrap());
+    }
 
     Ok(resp)
 }
 
 async fn list_files<'a>(Query(query): Query<ListFilesQueryParams>, State(state): State<Config>) -> Result<impl IntoResponse, String> {
-    Ok(get_file_list(query.path, state).await?)
+    Ok(get_file_list(query.path, state, true).await?)
 }
 
 #[derive(Deserialize)]
@@ -108,9 +110,10 @@ struct SetHeardParams {
 }
 
 async fn set_heard<'a>(State(state): State<Config>, Form(body): Form<SetHeardParams>) -> Result<impl IntoResponse, String> {
-    let file_path = &state.files_base_path.join(&body.path);
+    let base = &state.files_base_path;
+    let file_path = &base.join(&body.path);
 
-    if !file_path.starts_with(&state.files_base_path) {
+    if !file_path.starts_with(&base) {
         return Err("Invalid path".into())
     }
 
@@ -126,7 +129,13 @@ async fn set_heard<'a>(State(state): State<Config>, Form(body): Form<SetHeardPar
 
     xattr::set(file_path, "user.heard", &[new_value.into()]).unwrap();
 
-    Ok(get_file_list(Some(file_path.parent().expect("Unable to get parent of file").to_str().unwrap().to_string()), state).await?)
+    Ok(FileListingEntryTemplate {
+        name: file_path.file_name().unwrap().to_string_lossy().to_string(),
+        relative_path: file_path.strip_prefix(base).unwrap_or(Path::new(".")).to_string_lossy().to_string(),
+        size: format!("{} KB", file_path.metadata().unwrap().len() / 1024),
+        is_directory: file_path.metadata().unwrap().is_dir(),
+        is_heard: get_file_heard(&file_path)
+    })
 }
 
 #[derive(Clone)]

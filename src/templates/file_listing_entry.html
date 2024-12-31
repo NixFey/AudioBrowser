@@ -1,0 +1,6 @@
+{% if is_directory %}
+<a href="?path={{relative_path|e}}" hx-get="/list?path={{relative_path|e}}" hx-target="#fileListing">📁 {{name}}</a>
+{% else %}
+<a href="#" hx-put="/toggle-status" hx-vals='{"path": "{{relative_path|safe}}"}' hx-target="closest li">{% if is_heard %}✅{% else %}➡️{% endif %}</a>
+<a href="#" data-path="{{relative_path|e}}" onclick="setAudioSource(event);" hx-put="/toggle-status" hx-vals='{"path": "{{relative_path|safe}}", "heard": true}' hx-target="closest li">{{name}} ({{ size }})</a>
+{% endif %}
