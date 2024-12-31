@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>AudioBrowser</title>
+    <link rel="stylesheet" href="/assets/reset.css">
+    <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+
+    <style>
+        :root {
+            --color-primary: #1d69da; /* brand color */
+        }
+
+        body {
+            padding: 1em;
+        }
+
+        #audioPlayerContainer {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 0.5em;
+            background: white;
+            border-top: 1px solid darkslategray;
+        }
+
+        #audioPlayerContainer audio {
+            width: 100%;
+        }
+
+        #fileListing li a[data-active] {
+            background: #ee9;
+        }
+    </style>
+</head>
+<body>
+    <h1 class="text-center">AudioBrowser</h1>
+
+    <div id="fileListing" hx-trigger="load" hx-get="/list?path={{current_relative_path|e}}" style="margin-bottom: 10em;"></div>
+    <div id="audioPlayerContainer"><audio id="player" controls></audio></div>
+
+    <script>
+        window.currentFile = null;
+
+        function setAudioSource(e) {
+            const player = document.getElementById('player');
+            player.src = '/file/' + e.target.dataset["path"];
+            player.play();
+            window.currentFile = e.target.dataset["path"];
+            e.target.parentElement.querySelectorAll("[data-active]").forEach(el => el.dataset["active"] = undefined)
+            //e.target.dataset["active"] = "true";
+        }
+
+        document.getElementById("fileListing").addEventListener('htmx:load', function() {
+            if (window.currentFile === null) return;
+            let el = document.querySelector("a[data-path=\"" + window.currentFile + "\"]");
+            if (el === null) return;
+            el.dataset["active"] = "true";
+        });
+
+        const getFileEls = () => Array.from(document.querySelectorAll("#fileListing a[data-path]"));
+
+        document.addEventListener("keydown", (e) => {
+            if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+                e.preventDefault();
+                const files = getFileEls();
+                const activeIndex = files.findIndex(f => f.hasAttribute("data-active"));
+
+                if (activeIndex === -1) return;
+
+                const changeAudio = (el) => {
+                    el.scrollIntoView({
+                        block: "nearest",
+                        behavior: "smooth"
+                    });
+                    el.click();
+                };
+
+                if (e.key === "ArrowDown") {
+                    const newIndex = activeIndex + 1;
+                    if (newIndex >= files.length) return;
+
+                    changeAudio(files[newIndex]);
+                } else if (e.key === "ArrowUp") {
+                    const newIndex = activeIndex - 1;
+                    if (newIndex < 0) return;
+
+                    changeAudio(files[newIndex]);
+                }
+            } else if (e.key === " ") {
+                e.preventDefault();
+                const audio = document.querySelector("audio");
+
+                if (audio === null || audio.currentSrc === "") return;
+
+                if (audio.paused) {
+                    audio.play();
+                } else {
+                    audio.pause();
+                }
+            }
+        });
+    </script>
+</body>
+</html>
