@@ -48,7 +48,8 @@
             player.src = '/file/' + e.target.dataset["path"];
             player.play();
             window.currentFile = e.target.dataset["path"];
-            e.target.parentElement.querySelectorAll("[data-active]").forEach(el => el.dataset["active"] = undefined)
+            console.log('eeee', e.target.parentElement);
+            document.querySelectorAll("a[data-active]").forEach(el => delete el.dataset["active"])
         }
 
         document.getElementById("fileListing").addEventListener('htmx:load', function() {
