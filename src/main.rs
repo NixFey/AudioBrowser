@@ -32,6 +32,7 @@ async fn main() {
 #[derive(Deserialize)]
 struct ListFilesQueryParams {
     path: Option<String>,
+    push_history: Option<bool>
 }
 
 async fn home<'a>(Query(query): Query<ListFilesQueryParams>) -> impl IntoResponse {
@@ -100,7 +101,7 @@ async fn get_file_list<'a>(path: Option<String>, state: Config, push_history: bo
 }
 
 async fn list_files<'a>(Query(query): Query<ListFilesQueryParams>, State(state): State<Config>) -> Result<impl IntoResponse, String> {
-    Ok(get_file_list(query.path, state, true).await?)
+    Ok(get_file_list(query.path, state, query.push_history.is_some_and(|v| v)).await?)
 }
 
 #[derive(Deserialize)]

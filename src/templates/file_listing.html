@@ -1,7 +1,9 @@
+<title>AB - {{ relative_path }}</title>
+
 <h2>{{ relative_path }}
 
 {%- if let Some(text) = self.parent_relative_path %}
-<a class="traverse-up" href="?path={{text|e}}" hx-get="/list?path={{text|e}}" hx-target="#fileListing">Go up..</a>
+<a class="traverse-up" href="?path={{text|e}}" hx-get="/list?path={{text|e}}&push_history=true" hx-target="#fileListing">Go up..</a>
 {% endif %}
 </h2>
 

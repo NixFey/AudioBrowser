@@ -54,7 +54,6 @@
             player.src = '/file/' + e.target.dataset["path"];
             player.play();
             window.currentFile = e.target.dataset["path"];
-            console.log('eeee', e.target.parentElement);
             document.querySelectorAll("a[data-active]").forEach(el => delete el.dataset["active"])
         }
 
