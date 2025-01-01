@@ -1,3 +1,8 @@
+:root {
+    --color-primary: #9cc0ff; /* brand color */
+    --color-text: #ddd
+}
+
 /* 1. Use a more-intuitive box-sizing model */
 *, *::before, *::after {
     box-sizing: border-box;
@@ -42,11 +47,11 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 a {
-    color: #1d69da;
+    color: var(--color-primary);
 }
 
 a:visited {
-    color: #1d69da;
+    color: var(--color-primary);
 }
 
 /*

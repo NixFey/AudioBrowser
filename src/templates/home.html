@@ -9,12 +9,10 @@
     <script src="https://unpkg.com/htmx.org@2.0.4"></script>
 
     <style>
-        :root {
-            --color-primary: #1d69da; /* brand color */
-        }
-
         body {
             padding: 1em;
+            background: black;
+            color: var(--color-text)
         }
 
         #audioPlayerContainer {
@@ -23,8 +21,8 @@
             left: 0;
             right: 0;
             padding: 0.5em;
-            background: white;
-            border-top: 1px solid darkslategray;
+            background: #222;
+            border-top: 1px solid var(--color-text);
         }
 
         #audioPlayerContainer audio {
@@ -32,7 +30,12 @@
         }
 
         #fileListing li a[data-active] {
-            background: #ee9;
+            background: #494930;
+            padding-block: 3px;
+        }
+
+        .traverse-up {
+            font-size: 0.8em;
         }
     </style>
 </head>
