@@ -2,6 +2,8 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
     <title>AudioBrowser</title>
     <link rel="stylesheet" href="/assets/reset.css">
     <script src="https://unpkg.com/htmx.org@2.0.4"></script>
@@ -38,13 +40,14 @@
     <h1 class="text-center">AudioBrowser</h1>
 
     <div id="fileListing" hx-trigger="load" hx-get="/list?path={{current_relative_path|e}}" style="margin-bottom: 10em;"></div>
-    <div id="audioPlayerContainer"><audio id="player" controls></audio></div>
+    <div id="audioPlayerContainer" style="display: none;"><audio id="player" controls></audio></div>
 
     <script>
         window.currentFile = null;
 
         function setAudioSource(e) {
             const player = document.getElementById('player');
+            player.parentElement.style.display = "block";
             player.src = '/file/' + e.target.dataset["path"];
             player.play();
             window.currentFile = e.target.dataset["path"];
