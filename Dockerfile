@@ -19,4 +19,5 @@ RUN cargo build --release --bin AudioBrowser
 FROM debian:bookworm-slim AS runtime
 WORKDIR /app
 COPY --from=builder /app/target/release/AudioBrowser /usr/local/bin
+COPY --from=builder /app/assets /app/assets
 ENTRYPOINT ["/usr/local/bin/AudioBrowser"]
