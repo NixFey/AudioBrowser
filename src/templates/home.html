@@ -68,10 +68,14 @@
         const player = document.getElementById("player");
         const autoplayToggle = document.getElementById("autoplayToggle");
 
+        if (navigator && navigator.audioSession)
+            navigator.audioSession.type = "playback";
+
         function setAudioSource(e) {
             player.parentElement.style.display = "block";
             player.src = '/file/' + e.target.dataset["path"];
             player.play();
+            context.resume();
             window.currentFile = e.target.dataset["path"];
             document.querySelectorAll("a[data-active]").forEach(el => delete el.dataset["active"])
         }
@@ -121,7 +125,10 @@
                 if (player === null || player.currentSrc === "") return;
                 if (e.key === "ArrowLeft") {
                     player.currentTime = player.currentTime - SEEK_SECONDS;
-                    if (player.paused) player.play();
+                    if (player.paused) {
+                        player.play();
+                        context.resume();
+                    }
                 } else if (e.key === "ArrowRight") {
                     player.currentTime = player.currentTime + SEEK_SECONDS;
                 }
@@ -132,6 +139,7 @@
 
                 if (player.paused) {
                     player.play();
+                    context.resume();
                 } else {
                     player.pause();
                 }
