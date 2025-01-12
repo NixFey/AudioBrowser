@@ -1,20 +1,22 @@
 <title>AB - {{ relative_path }}</title>
 
-<h2>{{ relative_path }}
+<div hx-target="#fileListing" hx-trigger="every 10s" hx-get="/list?path={{relative_path|e}}&push_history=false">
+    <h2>{{ relative_path }}
 
-{%- if let Some(text) = self.parent_relative_path %}
-<a class="traverse-up" href="?path={{text|e}}" hx-get="/list?path={{text|e}}&push_history=true" hx-target="#fileListing">Go up..</a>
-{% endif %}
-</h2>
+    {%- if let Some(text) = self.parent_relative_path %}
+    <a class="traverse-up" href="?path={{text|e}}" hx-get="/list?path={{text|e}}&push_history=true" hx-target="#fileListing">Go up..</a>
+    {% endif %}
+    </h2>
 
-{% if files.len() == 0 %}
-No files
-{% else %}
-<ul>
-{% for file in files %}
-<li>
-    {{ file|safe }}
-</li>
-{% endfor %}
-</ul>
-{% endif %}
+    {% if files.len() == 0 %}
+    No files
+    {% else %}
+    <ul>
+    {% for file in files %}
+    <li>
+        {{ file|safe }}
+    </li>
+    {% endfor %}
+    </ul>
+    {% endif %}
+</div>
