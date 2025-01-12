@@ -1,0 +1,38 @@
+body {
+    padding: 1em;
+    background: black;
+    color: var(--color-text)
+}
+
+#audioPlayerContainer {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 0.5em;
+    background: #222;
+    border-top: 1px solid var(--color-text);
+}
+
+#audioPlayerContainer audio {
+    width: 100%;
+}
+
+#fileListing li a[data-active] {
+    background: #494930;
+    padding-block: 3px;
+}
+
+.traverse-up {
+    font-size: 0.8em;
+}
+
+.controls {
+    position: fixed;
+    top: 0;
+    right: 0;
+    padding: 0.5em;
+    background: black;
+    border-bottom: 1px solid var(--color-text);
+    border-left: 1px solid var(--color-text);
+}

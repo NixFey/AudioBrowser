@@ -1,7 +1,5 @@
-FROM rust:1.84 AS base
+FROM lukemathwalker/cargo-chef:0.1.68-rust-1.84 AS base
 WORKDIR /app
-
-RUN cargo install cargo-chef --locked
 
 FROM base AS planner
 COPY . .
