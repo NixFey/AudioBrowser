@@ -1,44 +1,104 @@
-use axum::{routing::{get, put}, Router, response::Result, Form};
-use tower_http::services::ServeDir;
-use std::env;
-use std::path::{Path, PathBuf};
 use axum::extract::{Query, State};
-use axum::http::{HeaderValue};
-use axum::response::IntoResponse;
+use axum::http::HeaderValue;
+use axum::response::{sse, sse::Event as SseEvent, IntoResponse, Sse};
+use axum::{response::Result, routing::{get, put}, Form, Router};
+use notify::{Event as NotifyEvent, Event, RecommendedWatcher, RecursiveMode, Watcher};
 use serde::Deserialize;
+use std::convert::Infallible;
+use std::env;
+use std::ffi::OsStr;
+use std::path::{Path, PathBuf};
+use std::time::Duration;
+use tokio::sync::broadcast;
+use tokio_stream::wrappers::BroadcastStream;
+use tokio_stream::{Stream, StreamExt};
+use tower_http::services::ServeDir;
 
 mod templates;
-use templates::{FileListingTemplate, FileListingEntryTemplate, HomeTemplate};
+use templates::{FileListingEntryTemplate, FileListingTemplate, HomeTemplate};
 
 #[tokio::main]
 async fn main() {
     println!("Starting server on http://localhost:3000 ...");
 
     let args: Vec<String> = env::args().collect();
-    let config = Config::build(&args).expect("Failed to load configuration");
+
+    let (b_tx, _) = broadcast::channel::<NotifyEvent>(5);
+    let config = Config::build(&args, b_tx.clone()).expect("Failed to load configuration");
+
+    // Spin up the watcher so we know when files got added or updated
+    let mut watcher = RecommendedWatcher::new(move |e: notify::Result<Event>| {
+        if let Ok(event) = e {
+            // Tmp files are probably still being written to disk, so will have a lot of changes
+            if event.paths.iter().any(|p| p.extension() != Some(OsStr::new("tmp"))) {
+                b_tx.send(event).unwrap();
+            }
+        }
+    }, notify::Config::default().with_poll_interval(Duration::from_secs(2))).unwrap();
+    watcher.watch(&config.files_base_path, RecursiveMode::Recursive).unwrap();
 
     let app = Router::new()
         .route("/", get(home))
         .route("/list", get(list_files))
         .route("/toggle-status", put(set_heard))
-        .nest_service("/file", ServeDir::new(config.clone().files_base_path))
+        .route("/events", get(sse_handler))
+        .nest_service("/file", ServeDir::new(config.files_base_path.clone()))
         .nest_service("/assets", ServeDir::new("assets"))
-        .with_state(config.clone());
+        .with_state(config);
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
     axum::serve(listener, app).await.unwrap();
-}
-
-#[derive(Deserialize)]
-struct ListFilesQueryParams {
-    path: Option<String>,
-    push_history: Option<bool>
 }
 
 async fn home<'a>(Query(query): Query<ListFilesQueryParams>) -> impl IntoResponse {
     HomeTemplate {
         current_relative_path: query.path.unwrap_or(String::from("")),
     }
+}
+
+async fn list_files<'a>(Query(query): Query<ListFilesQueryParams>, State(state): State<Config>) -> Result<impl IntoResponse, String> {
+    Ok(get_file_list(query.path, state, query.push_history.is_some_and(|v| v)).await?)
+}
+
+async fn set_heard<'a>(State(state): State<Config>, Form(body): Form<SetHeardParams>) -> Result<impl IntoResponse, String> {
+    let base = &state.files_base_path;
+    let file_path = &base.join(&body.path);
+
+    if !file_path.starts_with(&base) {
+        return Err("Invalid path".into())
+    }
+
+    if !file_path.is_file() {
+        return Err("Provided path is not a file".into())
+    }
+
+    let new_value = if body.heard.is_some() {
+        body.heard.unwrap()
+    } else {
+        !get_file_heard(file_path)
+    };
+
+    xattr::set(file_path, "user.heard", &[new_value.into()]).unwrap();
+
+    Ok(FileListingEntryTemplate {
+        name: file_path.file_name().unwrap().to_string_lossy().to_string(),
+        relative_path: file_path.strip_prefix(base).unwrap_or(Path::new(".")).to_string_lossy().to_string(),
+        size: format!("{} KB", file_path.metadata().unwrap().len() / 1024),
+        is_directory: file_path.metadata().unwrap().is_dir(),
+        is_heard: get_file_heard(&file_path)
+    })
+}
+
+async fn sse_handler(State(state): State<Config>) -> Sse<impl Stream<Item = Result<SseEvent, Infallible>>> {
+    let stream = BroadcastStream::new(state.b_tx.subscribe()).map(move |e| {
+        if let Ok(evt) = e {
+            Ok(SseEvent::default().event("fileUpdated").data(evt.paths.first().unwrap().strip_prefix(&state.files_base_path).unwrap().to_string_lossy().to_string()))
+        } else {
+            Ok(SseEvent::default().event("watcher_error").data(format!("{:?}", e)))
+        }
+    });
+
+    Sse::new(stream).keep_alive(sse::KeepAlive::default())
 }
 
 fn get_file_heard(path: &PathBuf) -> bool {
@@ -100,8 +160,10 @@ async fn get_file_list<'a>(path: Option<String>, state: Config, push_history: bo
     Ok(resp)
 }
 
-async fn list_files<'a>(Query(query): Query<ListFilesQueryParams>, State(state): State<Config>) -> Result<impl IntoResponse, String> {
-    Ok(get_file_list(query.path, state, query.push_history.is_some_and(|v| v)).await?)
+#[derive(Deserialize)]
+struct ListFilesQueryParams {
+    path: Option<String>,
+    push_history: Option<bool>
 }
 
 #[derive(Deserialize)]
@@ -110,42 +172,14 @@ struct SetHeardParams {
     heard: Option<bool>,
 }
 
-async fn set_heard<'a>(State(state): State<Config>, Form(body): Form<SetHeardParams>) -> Result<impl IntoResponse, String> {
-    let base = &state.files_base_path;
-    let file_path = &base.join(&body.path);
-
-    if !file_path.starts_with(&base) {
-        return Err("Invalid path".into())
-    }
-
-    if !file_path.is_file() {
-        return Err("Provided path is not a file".into())
-    }
-
-    let new_value = if body.heard.is_some() {
-        body.heard.unwrap()
-    } else {
-        !get_file_heard(file_path)
-    };
-
-    xattr::set(file_path, "user.heard", &[new_value.into()]).unwrap();
-
-    Ok(FileListingEntryTemplate {
-        name: file_path.file_name().unwrap().to_string_lossy().to_string(),
-        relative_path: file_path.strip_prefix(base).unwrap_or(Path::new(".")).to_string_lossy().to_string(),
-        size: format!("{} KB", file_path.metadata().unwrap().len() / 1024),
-        is_directory: file_path.metadata().unwrap().is_dir(),
-        is_heard: get_file_heard(&file_path)
-    })
-}
-
 #[derive(Clone)]
 pub struct Config {
     pub files_base_path: PathBuf,
+    pub b_tx: broadcast::Sender<NotifyEvent>,
 }
 
 impl Config {
-    pub fn build(_args: &[String]) -> Result<Config, &'static str> {
+    pub fn build(_args: &[String], b_tx: broadcast::Sender<NotifyEvent>) -> Result<Config, &'static str> {
         let files_base_path_str = env::var("FILES_BASE_PATH")
             .map_err(|_| "FILES_BASE_PATH env var not set or unable to be read")?;
         let files_base_path = PathBuf::from(files_base_path_str).to_path_buf();
@@ -156,6 +190,7 @@ impl Config {
 
         Ok(Config {
             files_base_path: std::path::PathBuf::from(files_base_path),
+            b_tx,
         })
     }
 }

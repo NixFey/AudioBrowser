@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="/assets/reset.css">
     <link rel="stylesheet" href="/assets/styles.css">
     <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+    <script src="https://unpkg.com/htmx-ext-sse@2.2.2/sse.js"></script>
 </head>
 <body>
     <h1 class="text-center">AudioBrowser</h1>
@@ -16,7 +17,7 @@
         <a href="#" id="autoplayToggle" data-value="false">Autoplay OFF</a>
     </div>
 
-    <div id="fileListing" hx-trigger="load" hx-get="/list?path={{current_relative_path|e}}" style="margin-bottom: 10em;"></div>
+    <div hx-ext="sse" sse-connect="/events" id="fileListing" hx-trigger="load" hx-get="/list?path={{current_relative_path|e}}" style="margin-bottom: 10em;"></div>
     <div id="audioPlayerContainer" style="display: none;"><audio id="player" controls></audio></div>
 
     <script src="/assets/home.js"></script>

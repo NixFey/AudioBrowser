@@ -1,6 +1,6 @@
 <title>AB - {{ relative_path }}</title>
 
-<div hx-target="#fileListing" hx-trigger="every 10s" hx-get="/list?path={{relative_path|e}}&push_history=false">
+<div hx-target="#fileListing" hx-trigger="sse:fileUpdated" hx-get="/list?path={{relative_path|e}}&push_history=false">
     <h2>{{ relative_path }}
 
     {%- if let Some(text) = self.parent_relative_path %}
