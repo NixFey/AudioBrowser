@@ -7,8 +7,30 @@
 
     window.currentFile = null;
 
-    const player = document.getElementById("player");
-    const autoplayToggle = document.getElementById("autoplayToggle");
+    let player = document.getElementById("player");
+    let autoplayToggle = document.getElementById("autoplayToggle");
+
+    function setupElementListeners() {
+        autoplayToggle.addEventListener("click", (e) => {
+            e.preventDefault();
+
+            autoplayToggle.dataset["value"] = autoplayToggle.dataset["value"] === "true" ? "false" : "true";
+
+            autoplayToggle.innerText = autoplayToggle.dataset["value"] === "true" ? "Autoplay ON" : "Autoplay OFF";
+        });
+
+        player.addEventListener("ended", () => {
+            if (autoplayToggle.dataset["value"] !== "true") return;
+
+            selectRelativeFile(1);
+        });
+    }
+
+    htmx.on('htmx:historyRestore', function () {
+        player = document.getElementById("player");
+        autoplayToggle = document.getElementById("autoplayToggle");
+        setupElementListeners();
+    });
 
     if (navigator && navigator.audioSession)
         navigator.audioSession.type = "playback";
@@ -87,7 +109,6 @@
             }
         } else if (e.key === "a") {
             e.preventDefault();
-
             autoplayToggle.click();
         }
     });
@@ -99,17 +120,5 @@
     gain.connect(context.destination);
     gain.gain.value = LOUDNESS_MULTIPLIER;
 
-    autoplayToggle.addEventListener("click", (e) => {
-        e.preventDefault();
-
-        autoplayToggle.dataset["value"] = autoplayToggle.dataset["value"] === "true" ? "false" : "true";
-
-        autoplayToggle.innerText = autoplayToggle.dataset["value"] === "true" ? "Autoplay ON" : "Autoplay OFF";
-    });
-
-    document.getElementById("player").addEventListener("ended", () => {
-        if (autoplayToggle.dataset["value"] !== "true") return;
-
-        selectRelativeFile(1);
-    });
+    setupElementListeners();
 })();
