@@ -92,7 +92,9 @@ async fn set_heard<'a>(State(state): State<Config>, Form(body): Form<SetHeardPar
 async fn sse_handler(State(state): State<Config>) -> Sse<impl Stream<Item = Result<SseEvent, Infallible>>> {
     let stream = BroadcastStream::new(state.b_tx.subscribe()).map(move |e| {
         if let Ok(evt) = e {
-            Ok(SseEvent::default().event("fileUpdated").data(evt.paths.first().unwrap().strip_prefix(&state.files_base_path).unwrap().to_string_lossy().to_string()))
+            let path = evt.paths.first().unwrap().strip_prefix(&state.files_base_path).unwrap().to_string_lossy().to_string();
+            println!("Received SSE event for path: {}", path);
+            Ok(SseEvent::default().event("fileUpdated").data(path))
         } else {
             Ok(SseEvent::default().event("watcher_error").data(format!("{:?}", e)))
         }
