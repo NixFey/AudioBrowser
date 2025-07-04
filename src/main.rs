@@ -30,8 +30,12 @@ async fn main() {
     let mut watcher = RecommendedWatcher::new(move |e: notify::Result<Event>| {
         if let Ok(event) = e {
             // Tmp files are probably still being written to disk, so will have a lot of changes
-            if event.paths.iter().any(|p| p.extension() != Some(OsStr::new("tmp"))) {
-                b_tx.send(event).unwrap();
+            if !event.kind.is_access() && event.paths.iter().any(|p| p.extension() != Some(OsStr::new("tmp"))) {
+                let send_res = b_tx.send(event);
+
+                if !send_res.is_ok() {
+                    eprintln!("Failed to notify watcher: {:?}", send_res.unwrap_err());
+                }
             }
         }
     }, notify::Config::default().with_poll_interval(Duration::from_secs(2))).unwrap();
