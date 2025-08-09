@@ -23,6 +23,10 @@ body {
     padding-block: 3px;
 }
 
+#fileListing li a[data-path] {
+    scroll-margin-bottom: 40vh;
+}
+
 .traverse-up {
     font-size: 0.8em;
 }
