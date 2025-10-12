@@ -24,6 +24,13 @@
 
             selectRelativeFile(1);
         });
+        
+        document.getElementById("fileListing").addEventListener('htmx:load', function() {
+            if (window.currentFile === null) return;
+            let el = document.querySelector("a[data-path=\"" + window.currentFile + "\"]");
+            if (el === null) return;
+            el.dataset["active"] = "true";
+        });
     }
 
     htmx.on('htmx:historyRestore', function () {
@@ -43,13 +50,6 @@
         window.currentFile = e.target.dataset["path"];
         document.querySelectorAll("a[data-active]").forEach(el => delete el.dataset["active"]);
     }
-
-    document.getElementById("fileListing").addEventListener('htmx:load', function() {
-        if (window.currentFile === null) return;
-        let el = document.querySelector("a[data-path=\"" + window.currentFile + "\"]");
-        if (el === null) return;
-        el.dataset["active"] = "true";
-    });
 
     function getFileEls() {
         return Array.from(document.querySelectorAll("#fileListing a[data-path]"));
